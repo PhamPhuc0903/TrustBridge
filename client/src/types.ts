@@ -1,0 +1,11 @@
+export type Role = 'INVESTOR'|'STARTUP'|'ADMIN';
+export type User = {id:number;name:string;email:string;role:Role;ekyc_verified:boolean;owned_companies:string[]};
+export type DemoAccount = {email:string;name:string;role:Role};
+export type Pitch = {pitch_id:string;industry:string;funding_target:{amount_minor:number;currency:string};equity_percent:number;ai_trust_score:number|null;public_ai_summary:string;status:string;monthly_updates_used:number;monthly_updates_limit:number;ai_provider:string;access_status?:string};
+export type PrivatePitch = Pitch & {industry_tags:string[];brand_name:string;founder_name:string;secret:string;private_details:string;agent_breakdown:{feasibility_score:number|null;financial_score:number|null;risk_spam_score:number|null};version:number;ai_reviewed_version:number|null;payment_status:string};
+export type AccessRequest = {id:number;pitch_id:string;investor_id:number;investor_name:string;ekyc_verified:boolean;owned_companies:string[];status:'PENDING'|'APPROVED'|'REJECTED';risk_level:string;similarity_percent:number;warning_message:string;decision_note:string;conflict_provider:string};
+export type Milestone = {id:number;sequence:number;target:string;allocation_percent:number;gross_minor:number;fee_minor:number;net_minor:number;status:string;evidence:string;payout:null|{id:number;status:string;gross_minor:number;fee_minor:number;net_minor:number;provider:string}};
+export type Deal = {id:string;pitch_id:string;pitch_name:string;investor_id:number;investor_name:string;committed_minor:number;currency:string;fee_percent:number;status:string;money_mode:string;milestones:Milestone[]};
+export type Audit = {id:number;actor_id:number|null;action:string;subject:string;detail:string;created_at:string};
+export type Overview = {role:Role;metrics:Record<string,number>;recent_activity:{action:string;subject:string;created_at:string}[]};
+export type ProgressUpdate = {id:number;pitch_id:string;content:string;period:string;created_at:string};

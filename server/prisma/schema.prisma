@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique @db.VarChar(255)
+  displayName   String    @db.VarChar(150)
+  passwordHash  String
+  authVersion   String    @default(uuid())
+  role          String    @db.VarChar(20)
+  ekycVerified  Boolean   @default(false)
+  holdings      Json      @default("[]")
+  createdAt     DateTime  @default(now())
+
+  startupPitch  Pitch?    @relation("StartupPitch")
+  requests      AccessRequest[] @relation("InvestorRequests")
+  grantsReceived AccessGrant[] @relation("InvestorGrants")
+  grantsGiven   AccessGrant[] @relation("StartupGrants")
+  investorDeals Deal[] @relation("InvestorDeals")
+  audits        AuditLog[]
+  @@map("users")
+}
+
+model Pitch {
+  id             String    @id @db.VarChar(30)
+  startupId      Int       @unique
+  startup        User      @relation("StartupPitch", fields: [startupId], references: [id])
+  industry       String    @db.VarChar(100)
+  industryTags   Json      @default("[]")
+  targetCents    BigInt
+  equityPercent  Int
+  brandName      String    @db.VarChar(150)
+  founderName    String    @db.VarChar(150)
+  secret         String    @default("") @db.Text
+  privateDetails String    @default("") @db.Text
+  status         String    @default("DRAFT") @db.VarChar(30)
+  paymentStatus  String    @default("UNPAID") @db.VarChar(30)
+  version        Int       @default(1)
+  updatesPeriod  String    @default("") @db.VarChar(7)
+  updatesUsed    Int       @default(0)
+  aiScore        Int?
+  feasibilityScore Int?
+  financialScore Int?
+  riskScore      Int?
+  publicAiSummary String  @default("") @db.Text
+  aiReviewedVersion Int?
+  aiProvider     String    @default("MOCK") @db.VarChar(30)
+  createdAt      DateTime  @default(now())
+
+  updates        ProgressUpdate[]
+  reviews        AiReview[]
+  requests       AccessRequest[]
+  grants         AccessGrant[]
+  deals          Deal[]
+  @@map("pitches")
+}
+
+model ProgressUpdate {
+  id        Int      @id @default(autoincrement())
+  pitchId   String
+  pitch     Pitch    @relation(fields: [pitchId], references: [id])
+  content   String   @db.Text
+  period    String   @db.VarChar(7)
+  createdAt DateTime @default(now())
+  @@index([pitchId, period])
+  @@map("progress_updates")
+}
+
+model AiReview {
+  id           Int      @id @default(autoincrement())
+  pitchId      String
+  pitch        Pitch    @relation(fields: [pitchId], references: [id])
+  pitchVersion Int
+  score        Int
+  breakdown    Json
+  summary      String   @db.Text
+  provider     String   @default("MOCK")
+  createdAt    DateTime @default(now())
+  @@index([pitchId, pitchVersion])
+  @@map("ai_reviews")
+}
+
+model AccessRequest {
+  id                Int       @id @default(autoincrement())
+  pitchId           String
+  investorId        Int
+  pitch             Pitch     @relation(fields: [pitchId], references: [id])
+  investor          User      @relation("InvestorRequests", fields: [investorId], references: [id])
+  status            String    @default("PENDING") @db.VarChar(20)
+  riskLevel         String    @default("UNKNOWN")
+  similarityPercent Int       @default(0)
+  warningMessage    String    @default("") @db.Text
+  conflictProvider  String    @default("MOCK")
+  decisionNote      String    @default("") @db.Text
+  conflictAcknowledged Boolean @default(false)
+  createdAt         DateTime  @default(now())
+  decidedAt         DateTime?
+  @@unique([pitchId, investorId])
+  @@map("access_requests")
+}
+
+model AccessGrant {
+  id         Int       @id @default(autoincrement())
+  pitchId    String
+  investorId Int
+  grantedBy  Int
+  pitch      Pitch     @relation(fields: [pitchId], references: [id])
+  investor   User      @relation("InvestorGrants", fields: [investorId], references: [id])
+  grantedByUser User   @relation("StartupGrants", fields: [grantedBy], references: [id])
+  revoked    Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  @@unique([pitchId, investorId])
+  @@map("access_grants")
+}
+
+model Deal {
+  id             String     @id @db.VarChar(30)
+  pitchId        String
+  investorId     Int
+  pitch          Pitch      @relation(fields: [pitchId], references: [id])
+  investor       User       @relation("InvestorDeals", fields: [investorId], references: [id])
+  committedCents BigInt
+  feeBps         Int        @default(500)
+  status         String     @default("SIMULATED_FUNDED")
+  milestones     Milestone[]
+  @@unique([pitchId, investorId])
+  @@map("deals")
+}
+
+model Milestone {
+  id                Int       @id @default(autoincrement())
+  dealId            String
+  deal              Deal      @relation(fields: [dealId], references: [id])
+  sequence          Int
+  target            String    @db.VarChar(255)
+  allocationPercent Int
+  grossCents        BigInt
+  status            String    @default("LOCKED")
+  evidence          String    @default("") @db.Text
+  payout            Payout?
+  @@unique([dealId, sequence])
+  @@map("milestones")
+}
+
+model Payout {
+  id           Int           @id @default(autoincrement())
+  milestoneId  Int           @unique
+  milestone    Milestone     @relation(fields: [milestoneId], references: [id])
+  grossCents   BigInt
+  feeCents     BigInt
+  netCents     BigInt
+  provider     String        @default("SIMULATOR")
+  status       String        @default("SIMULATED_PAID")
+  createdAt    DateTime      @default(now())
+  ledger       LedgerEntry[]
+  @@map("payouts")
+}
+
+model LedgerEntry {
+  id          Int       @id @default(autoincrement())
+  payoutId    Int
+  payout      Payout    @relation(fields: [payoutId], references: [id])
+  account     String    @db.VarChar(30)
+  signedCents BigInt
+  @@map("ledger_entries")
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String   @db.VarChar(80)
+  subject   String   @db.VarChar(80)
+  detail    String   @default("") @db.Text
+  createdAt DateTime @default(now())
+  @@map("audit_logs")
+}
